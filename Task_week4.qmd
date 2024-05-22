@@ -32,7 +32,7 @@ In the above dataset, the sampling interval is 15 minutes. If we take a temporal
 
 4.  `pos[n]` to `pos[n+2]`
 
-# **Step b): Measure the distance from every point to every other point within this temporal window** 
+# **Step b): Measure the distance from every point to every other point within this temporal window**
 
 We can use the function distance_by_element from week 2 in combination with `lead()` and `lag()` to calculate the Euclidean distance. For example, to create the necessary offset of n-2, we use `lag(x, 2)`. For each offset, we create one individual column.
 
@@ -67,7 +67,7 @@ sabi <- sabi |>
 sabi
 ```
 
-# **Step c): Remove \"static points\"**
+# **Step c): Remove "static points"**
 
 We can now determine if an animal is moving or not by specifying a threshold distance on `stepMean`. In our example, we use the mean value as a threshold: Positions with distances below this value are considered static.
 
@@ -87,3 +87,58 @@ sabi_filter |>
 ```
 
 # Preparation2:
+
+loading tracking Data:
+
+```{r}
+data <- read_delim("Daten_Bewegung.csv")
+
+#So modifizieren, damit man nur noch die benötigten Daten hat
+
+data$user_id <- NULL
+data$weekday <- NULL
+data$place_name <- NULL
+data$transport_mode <- NULL
+
+View(data)
+```
+
+Now set the coordinate system to EPSG 2056
+
+```{r}
+d_move <- data |>
+  st_as_sf(coords = c("lon_x", "lat_y"), crs = 2056, remove = FALSE) |>
+  filter(datetime >= "2024-04-05", datetime < "2024-04-06")
+```
+
+# Task 1: Segmentation
+
+## **Step a): Specify a temporal window v**
+
+The movement data has a sampling interval of 15 seconds. So to stick to the 4 fixes, we calculate the euclidean distance for a window of 1 minute
+
+1.  `pos[n-2]` to `pos[n]`
+
+2.  `pos[n-1]` to `pos[n]`
+
+3.  `pos[n]` to `pos[n+1]`
+
+4.  `pos[n]` to `pos[n+2]`
+
+## **Step b): Measure the distance from every point to every other point within this temporal window**
+
+```{r}
+distance_by_element <- function(later, now) {
+  as.numeric(
+    st_distance(later, now, by_element = TRUE)
+  )
+}
+
+d_move <- d_move |>
+    mutate(
+        nMinus2 = distance_by_element(lag(geometry, 2), geometry),  # distance to pos -30 seconds
+        nMinus1 = distance_by_element(lag(geometry, 1), geometry),  # distance to pos -15 seconds
+        nPlus1  = distance_by_element(geometry, lead(geometry, 1)), # distance to pos +15 seconds
+        nPlus2  = distance_by_element(geometry, lead(geometry, 2))  # distance to pos +30 seconds
+    )
+```
