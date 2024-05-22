@@ -142,3 +142,17 @@ d_move <- d_move |>
         nPlus2  = distance_by_element(geometry, lead(geometry, 2))  # distance to pos +30 seconds
     )
 ```
+
+Now we want to calculate the mean distance of `nMinus2`, `nMinus1`, `nPlus1`, `nPlus2` for each row. Since we want the mean value *per Row*, we have to explicitly specify this before `mutate()` with the function `rowwise()`. To remove this rowwise-grouping, we end the operation with `ungroup()`.
+
+```{r}
+d_move <- d_move |>
+    rowwise() |>
+    mutate(
+        stepMean = mean(c(nMinus2, nMinus1, nPlus1, nPlus2))
+    ) |>
+    ungroup()
+
+```
+
+# **Task 2: Specify and apply threshold *d:***
